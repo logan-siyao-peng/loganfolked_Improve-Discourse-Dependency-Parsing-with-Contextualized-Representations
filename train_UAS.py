@@ -18,6 +18,8 @@ import torch.optim as optim
 import argparse
 from models import BertArcNet, SEQ_LEN
 
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
 
 def main():
     #parse the arguments
@@ -80,7 +82,7 @@ def main():
     #         auto_scale_batch_size= "power" , max_epochs = 3, benchmark = True,auto_lr_find=True)
     # model = BertArcNetPL(bert)
     # trainer.fit(model, train_dataloader, dev_dataloader)
-    model = BertArcNet(bert).cuda()
+    model = BertArcNet(bert).to(device)
     # model = torch.load('trained_models/SciDTB/sciDTB_between_sentence.pt')
     optimizer = optim.Adam(model.parameters(), lr = args.learning_rate)
     criterion = nn.CrossEntropyLoss()

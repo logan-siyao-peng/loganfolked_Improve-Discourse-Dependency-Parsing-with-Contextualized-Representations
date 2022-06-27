@@ -22,6 +22,8 @@ from relation_labeling import prepare_finetune_dataloader, LSTMDataset,\
 from models import BertArcNet, BertRelationNet, RelationLSTMTagger
 # bert = AutoModel.from_pretrained("bert-base-chinese")
 
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
 
 def main():
     #parse the arguments
@@ -66,7 +68,7 @@ def main():
                  args.dataset, between_sentence = True )
         model = BertRelationNet(bert, relation_list)
     elif args.train_option.endswith('lstm'):
-        relation_bert = torch.load(args.path_bert).bert.eval().cuda()
+        relation_bert = torch.load(args.path_bert, map_location=torch.device(device)).bert.eval().to(device)
         if args.train_option.startswith('in_sentence'):
             train_dataloader = prepare_seq_label_dataloader(train_data, tokenizer, relation_bert, args.dataset)
             dev_dataloader = prepare_seq_label_dataloader(dev_data, tokenizer, relation_bert, args.dataset)
@@ -75,7 +77,7 @@ def main():
                  relation_bert, args.dataset, between_sentence= True)
             dev_dataloader = prepare_seq_label_dataloader(dev_data, tokenizer,\
                  relation_bert, args.dataset, between_sentence= True)
-        model = RelationLSTMTagger(relation_list).cuda().double()
+        model = RelationLSTMTagger(relation_list).to(device).double()
     else:
         raise Exception("train_option invalid. Valid train_option: in_sentence_bert, in_sentence_lstm, between_sentence_bert, between_sentence_lstm")
 

@@ -2,6 +2,9 @@ from utils.EDU import EDU
 from utils.Transition_system import Arc_eager, num_EDUs
 import torch
 
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+
 def modify_contextualized_embeddings(edus, tokenizer, SEQ_LEN = 80):
   """
   update contextualized embeddings for edus
@@ -37,9 +40,9 @@ def wrapper_model( model):
   """
   a model wrapper to deal with some overhead work
   """
-  model = model.cuda()
+  model = model.to(device)
   def my_wrapper_model(x):
-    x = torch.Tensor(x).long().cuda()
+    x = torch.Tensor(x).long().to(device)
     result = model(x).cpu().detach().numpy()
     return result
   return lambda x:my_wrapper_model(x)

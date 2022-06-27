@@ -9,6 +9,9 @@ import torch.optim as optim
 from torch.utils.data import DataLoader
 from utils.Transition_system import Arc_eager
 
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+
 def build_in_sentence_data(data):
     """
     split the paragraph into sentences
@@ -62,13 +65,13 @@ def classification_train(net, train_dataloader, optimizer, criterion, verbose = 
     training the UAS parser with offline logged data
     it can also be used for finetuning bert model for relation prediction
     """
-    net = net.cuda()
+    net = net.to(device)
     losses = []
     weights = []
     for batch_idx, (inputs, target) in tqdm(enumerate(train_dataloader)):
         optimizer.zero_grad()
-        outputs = net(inputs.cuda())
-        loss = criterion(outputs, target.cuda())
+        outputs = net(inputs.to(device))
+        loss = criterion(outputs, target.to(device))
         loss.backward()
         optimizer.step()
         losses.append(loss.item())
@@ -85,12 +88,12 @@ def classification_validate(net, val_dataloader, criterion, verbose = False):
     validating the UAS parser with offline logged data
     it can also be used for finetuning bert model for relation prediction
     """
-    net = net.eval().cuda()
+    net = net.eval().to(device)
     losses = []
     weights = []
     accuracies = []
     for batch_idx, (inputs, target) in enumerate(val_dataloader):
-        outputs = net(inputs.cuda()).cpu()
+        outputs = net(inputs.to(device)).cpu()
         target = target.cpu()
         accuracy = torch.sum(torch.argmax(outputs, dim = 1) == target)
         accuracies.append(accuracy)

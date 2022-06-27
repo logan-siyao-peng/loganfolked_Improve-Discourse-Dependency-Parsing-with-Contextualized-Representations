@@ -3,6 +3,8 @@ import torch.nn as nn
 num_EDUs = 6
 SEQ_LEN = 80
 
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
 class BertArcNet(nn.Module):
     """
     use the EDU embedding (contextualized with other EDUs in the discourse)
@@ -21,9 +23,9 @@ class BertArcNet(nn.Module):
         features = []
         for i,example in enumerate(x):
           if indexes[i,0] == 0:
-            features.append(torch.zeros(1,768).cuda())
+            features.append(torch.zeros(1,768).to(device))
           elif indexes[i,0] >= SEQ_LEN:
-            features.append(torch.ones(1,768).cuda())
+            features.append(torch.ones(1,768).to(device))
           else:
             features.append(torch.mean(example[indexes[i,0]:indexes[i,1],:], dim = 0).reshape(1,768))
         x = torch.cat(features, dim = 0).reshape(-1, 768*num_EDUs)

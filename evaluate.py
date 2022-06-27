@@ -12,6 +12,7 @@ from relation_labeling import build_relation_list, assembled_transform_heads, tr
 from models import BertArcNet, BertRelationNet, RelationLSTMTagger
 # bert = AutoModel.from_pretrained("bert-base-chinese")
 
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 def main():
     #parse the arguments
@@ -38,8 +39,8 @@ def main():
     tokenizer = AutoTokenizer.from_pretrained(args.tokenizer_name)
     with open(args.path_test_data,'rb') as fb:
         test_data = pickle.load(fb)
-    in_sentence_model = torch.load(args.path_in_sentence_model).eval().cuda()
-    between_sentence_model = torch.load(args.path_between_sentence_model).eval().cuda()
+    in_sentence_model = torch.load(args.path_in_sentence_model, map_location=torch.device(device)).eval().to(device)
+    between_sentence_model = torch.load(args.path_between_sentence_model, map_location=torch.device(device)).eval().to(device)
 
 # with open('cdtb_test.data','rb') as fb:
 #   test_data = pickle.load(fb)
@@ -81,16 +82,16 @@ def main():
 
     #load the models for relation tagging
     if args.relation_labeling_option == 'stacked':
-        relation_bert = torch.load(args.path_relation_bert).bert.eval().cuda()
-        relation_bert.gradient_checkpointing_enable()
-        between_bert = torch.load(args.path_between_bert).bert.eval().cuda()
-        between_bert.gradient_checkpointing_enable()
-        lstm_tagger = torch.load(args.path_lstm_tagger).eval().cuda().double()
-        lstm_tagger.hidden = (lstm_tagger.hidden[0].cuda(),lstm_tagger.hidden[1].cuda())
-        between_tagger = torch.load(args.path_between_tagger).eval().cuda().double()
-        between_tagger.hidden = (between_tagger.hidden[0].cuda(), between_tagger.hidden[1].cuda())
+        relation_bert = torch.load(args.path_relation_bert, map_location=torch.device(device)).bert.eval().to(device)
+        # relation_bert.gradient_checkpointing_enable() # Logan
+        between_bert = torch.load(args.path_between_bert, map_location=torch.device(device)).bert.eval().to(device)
+        # between_bert.gradient_checkpointing_enable() # Logan
+        lstm_tagger = torch.load(args.path_lstm_tagger, map_location=torch.device(device)).eval().to(device).double()
+        lstm_tagger.hidden = (lstm_tagger.hidden[0].to(device),lstm_tagger.hidden[1].to(device))
+        between_tagger = torch.load(args.path_between_tagger, map_location=torch.device(device)).eval().to(device).double()
+        between_tagger.hidden = (between_tagger.hidden[0].to(device), between_tagger.hidden[1].to(device))
     else:
-        simple_relation_net = torch.load(args.path_simple_relation_net).eval().cuda()
+        simple_relation_net = torch.load(args.path_simple_relation_net, map_location=torch.device(device)).eval().to(device)
 
     #do the relation tagging
     LASright = 0

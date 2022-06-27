@@ -2,6 +2,9 @@ import numpy as np
 import torch
 from utils.training_utils import build_between_sentence_data
 
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+
 def build_relation_list(option = 'scidtb'):
   """
   iterate over data to yield a list of all relations
@@ -86,7 +89,7 @@ def transform_heads_simple(heads, edus, simple_relation_net, relation_list, toke
   return the predicted relations by direct relation classification
   heads is a dictionary where heads[edu.id] is the id of its head
   """
-  simple_relation_net = simple_relation_net.cuda()
+  simple_relation_net = simple_relation_net.to(device)
   relations = {}
   n = len(heads)
   for edu in range(1,1+n):
@@ -101,7 +104,7 @@ def transform_heads_simple(heads, edus, simple_relation_net, relation_list, toke
       else:
         feature = [[ edus[edu - 1], edus[head - 1]]]
     feature = tokenize_relation_data(feature, tokenizer)
-    relation = np.argmax(simple_relation_net(feature.cuda()).cpu().detach().numpy())
+    relation = np.argmax(simple_relation_net(feature.to(device)).cpu().detach().numpy())
     relations[edu] = relation_list[relation]
   return relations
 
@@ -157,16 +160,16 @@ def assembled_transform_heads(heads, edus, relation_bert, lstm_tagger, between_r
       if head == 0 or edus[edu - 1].sentenceNo != edus[head - 1].sentenceNo:
         between_heads[edu] = head
         between_edus.append(edu)
-        between_features.append(between_relation_bert(feature.cuda())[0][:,0,:].cpu().detach() + sin_enc)
+        between_features.append(between_relation_bert(feature.to(device))[0][:,0,:].cpu().detach() + sin_enc)
 
-      feature = relation_bert(feature.cuda())[0][:,0,:].cpu().detach() + sin_enc
+      feature = relation_bert(feature.to(device))[0][:,0,:].cpu().detach() + sin_enc
       relation_features.append(feature)
     relation_features = torch.cat(relation_features, dim = 0)
-    all_relations = np.argmax(lstm_tagger(relation_features.cuda()).cpu().detach().numpy(), axis = 1)
+    all_relations = np.argmax(lstm_tagger(relation_features.to(device)).cpu().detach().numpy(), axis = 1)
     for i, relation_index in enumerate(all_relations):
       relations[i+1] = relation_list[relation_index]
     between_features = torch.cat(between_features, dim = 0)
-    between_relations = np.argmax(between_tagger(between_features.cuda()).cpu().detach().numpy(), axis = 1)
+    between_relations = np.argmax(between_tagger(between_features.to(device)).cpu().detach().numpy(), axis = 1)
     for i, relation_index in enumerate(between_relations):
       relations[between_edus[i]] = relation_list[relation_index]
     return relations
@@ -226,7 +229,7 @@ def prepare_seq_label_dataloader(data, tokenizer, relation_bert ,option = 'scidt
   """
   prepare the dataloader to train sequence labeling models
   """
-  relation_bert = relation_bert.cuda()
+  relation_bert = relation_bert.to(device)
   edu2tokens = {}
   relation_list = build_relation_list(option)
   for edus in data:
@@ -247,7 +250,7 @@ def prepare_seq_label_dataloader(data, tokenizer, relation_bert ,option = 'scidt
     data = build_between_sentence_data(data)
   for j,edus in enumerate(data):
     token_features = torch.cat([edu2tokens[edu] for edu in edus], dim = 0)
-    token_features = relation_bert(token_features.cuda())[0][:,0,:].detach().cpu()
+    token_features = relation_bert(token_features.to(device))[0][:,0,:].detach().cpu()
     for i,edu in enumerate(edus):
       edu2representations[edu] = token_features[i]
   
@@ -270,13 +273,13 @@ def prepare_seq_label_dataloader(data, tokenizer, relation_bert ,option = 'scidt
 
 #training for sequence labeling
 def labeling_train(net, train_dataloader, optimizer, criterion, verbose = False):
-    net = net.train().cuda()
-    net.hidden = (net.hidden[0].cuda(), net.hidden[1].cuda())
+    net = net.train().to(device)
+    net.hidden = (net.hidden[0].to(device), net.hidden[1].to(device))
     losses = []
     weights = []
     i = 0
     for batch_idx, (inputs, target) in enumerate(train_dataloader):
-        outputs = net(inputs.cuda()).cpu()
+        outputs = net(inputs.to(device)).cpu()
         loss = criterion(outputs, target)
         loss.backward()
         if i == 32:
@@ -295,13 +298,13 @@ def labeling_train(net, train_dataloader, optimizer, criterion, verbose = False)
     
 #validate the model, return the loss
 def labeling_validate(net, val_dataloader, criterion, verbose = False):
-    net = net.eval().cuda()
-    net.hidden = (net.hidden[0].cuda(), net.hidden[1].cuda())
+    net = net.eval().to(device)
+    net.hidden = (net.hidden[0].to(device), net.hidden[1].to(device))
     losses = []
     weights = []
     accuracies = []
     for batch_num, (inputs, target) in enumerate(val_dataloader):
-        outputs = net(inputs.cuda()).cpu()
+        outputs = net(inputs.to(device)).cpu()
         accuracy = torch.sum(torch.argmax(outputs, dim = 1) == target)
         accuracies.append(accuracy)
         loss = criterion(outputs, target)
